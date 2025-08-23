@@ -4,13 +4,12 @@ const PORT = process.env.PORT || 4040;
 const app = express();
 app.use(express.json());
 
-// Handle all POST requests
-app.post("/*", async (req, res) => {
+app.post("*", async (req, res) => {
+    console.log(req.body);
     res.send("Hello post");
 });
 
-// Handle all GET requests
-app.get("/*", async (req, res) => {
+app.get("*", async (req, res) => {
     res.send("Hello get");
 });
 
