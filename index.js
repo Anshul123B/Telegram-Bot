@@ -1,3 +1,9 @@
+//to run the .env
+require("dotenv").config();
+const MY_TOKEN = process.env.MY_TOKEN;
+const method = process.env.method;
+
+//main working code
 const express = require("express");
 const PORT = process.env.PORT || 4040;
 

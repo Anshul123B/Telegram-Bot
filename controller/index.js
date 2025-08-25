@@ -1,0 +1,1 @@
+const {handleMessage} = require("./lib/Telegram");
