@@ -1,41 +1,65 @@
+// lib/Telegram.js
 const axios = require("axios");
-const OpenAI = require("openai");
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+require("dotenv").config({ path: __dirname + "/../.env" });
 
 const TELEGRAM_API = `https://api.telegram.org/bot${process.env.MY_TOKEN}`;
+const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
-async function handleMessage(messageObj) {
-  if (!messageObj || !messageObj.text) return;
-
-  const chatId = messageObj.chat.id;
-  const userMessage = messageObj.text;
-
+// function to call OpenAI
+async function callOpenAI(userText) {
   try {
-    // Send user message to OpenAI
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini", // You can change model if needed
-      messages: [{ role: "user", content: userMessage }],
+    const url = "https://api.openai.com/v1/chat/completions";
+    const payload = {
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "user", content: userText }],
+      max_tokens: 500
+    };
+
+    const resp = await axios.post(url, payload, {
+      headers: {
+        "Authorization": `Bearer ${OPENAI_KEY}`,
+        "Content-Type": "application/json"
+      }
     });
 
-    const botReply = completion.choices[0].message.content;
+    return resp.data.choices?.[0]?.message?.content ?? null;
+  } catch (err) {
+    console.error("callOpenAI error:", err?.response?.data || err.message || err);
+    return null;
+  }
+}
 
-    // Send reply back to Telegram user
-    await axios.post(`${TELEGRAM_API}/sendMessage`, {
-      chat_id: chatId,
-      text: botReply,
-    });
+// handles messages from Telegram
+async function handleMessage(messageObj) {
+  try {
+    if (!messageObj || !messageObj.text) return;
 
-  } catch (error) {
-    console.error("Error handling message:", error.message);
+    const chatId = messageObj.chat.id;
+    const userText = messageObj.text;
 
-    // Send fallback error message
-    await axios.post(`${TELEGRAM_API}/sendMessage`, {
-      chat_id: chatId,
-      text: "Sorry, something went wrong. Try again!",
-    });
+    // call OpenAI
+    const aiReply = await callOpenAI(userText);
+
+    // send reply to Telegram
+    if (aiReply) {
+      await axios.post(`${TELEGRAM_API}/sendMessage`, {
+        chat_id: chatId,
+        text: aiReply
+      });
+    } else {
+      await axios.post(`${TELEGRAM_API}/sendMessage`, {
+        chat_id: chatId,
+        text: "Sorry, I couldn't generate a reply."
+      });
+    }
+  } catch (err) {
+    console.error("handleMessage error:", err?.response?.data || err.message || err);
+    try {
+      await axios.post(`${TELEGRAM_API}/sendMessage`, {
+        chat_id: messageObj.chat.id,
+        text: "Sorry, something went wrong."
+      });
+    } catch (_) {}
   }
 }
 

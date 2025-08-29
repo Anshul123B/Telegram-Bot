@@ -1,29 +1,24 @@
-//to run the .env
-require("dotenv").config();
-const MY_TOKEN = process.env.MY_TOKEN;
-const method = process.env.method;
-
-//main working code
+// index.js
+require("dotenv").config({ path: __dirname + "/.env" });
 const express = require("express");
 const { handler } = require("./controller");
-const PORT = process.env.PORT || 4040;
 
+const PORT = process.env.PORT || 4040;
 const app = express();
+
 app.use(express.json());
 
-app.post("*", async (req, res) => {
-    console.log(req.body);
-    res.send(await handler(req));
+app.post("/webhook", async (req, res) => {
+  try {
+    console.log("Incoming update:", JSON.stringify(req.body).slice(0,1000));
+    await handler(req);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error("Webhook handler error:", err);
+    res.sendStatus(500);
+  }
 });
 
-app.get("*", async (req, res) => {
-    res.send(await handler(req));
-});
+app.get("/", (req, res) => res.send("Bot server running"));
 
-app.listen(PORT, function (err) {
-    if (err) console.log(err);
-    console.log("Server listening on PORT", PORT);
-});
-
-
-`https://api.telegram.org/bot${MY_TOKEN}/${method}`;
+app.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
