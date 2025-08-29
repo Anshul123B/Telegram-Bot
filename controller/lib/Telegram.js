@@ -1,32 +1,42 @@
-const { axiosInstance } = require("./axios");
+const axios = require("axios");
+const OpenAI = require("openai");
 
-function sendMessage(messageObj, messageText) {
-    return axiosInstance.get("sendMessage", {
-        chat_id: messageObj.chat.id,
-        text: messageText,
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+const TELEGRAM_API = `https://api.telegram.org/bot${process.env.MY_TOKEN}`;
+
+async function handleMessage(messageObj) {
+  if (!messageObj || !messageObj.text) return;
+
+  const chatId = messageObj.chat.id;
+  const userMessage = messageObj.text;
+
+  try {
+    // Send user message to OpenAI
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini", // You can change model if needed
+      messages: [{ role: "user", content: userMessage }],
     });
+
+    const botReply = completion.choices[0].message.content;
+
+    // Send reply back to Telegram user
+    await axios.post(`${TELEGRAM_API}/sendMessage`, {
+      chat_id: chatId,
+      text: botReply,
+    });
+
+  } catch (error) {
+    console.error("Error handling message:", error.message);
+
+    // Send fallback error message
+    await axios.post(`${TELEGRAM_API}/sendMessage`, {
+      chat_id: chatId,
+      text: "Sorry, something went wrong. Try again!",
+    });
+  }
 }
 
-function handleMessage(messageObj){
-    const messageText = messageObj.text || "";
-
-    if(messageText.chart(0) == "/"){
-        const command = messageText.substr(1);
-        switch(command) {
-            case "start":
-                //sending wlcm mssage to user
-                return sendMessage(
-                    messageObj,
-                    "Hii! I'm a bot. I can help you to get started"
-                );
-                default://for Unknown command
-                return sendMessage(messageObj, "Hey hi, i don't know this command");
-        }
-    }
-    else{
-        //we send mssage back to user
-        return sendMessage(messageObj,messageText);
-    }
-}
-
-module.export = {handleMessage};
+module.exports = { handleMessage };
